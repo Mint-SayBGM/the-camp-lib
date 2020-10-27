@@ -1,5 +1,5 @@
-import requestPromise from 'request-promise';
 
+import Axios from 'axios';
 import { Soldier, Message, Cookie, SoldierClass } from '../models';
 import { buildRequestUrl, addLog } from '../utils';
 
@@ -31,23 +31,29 @@ async function sendMessage(cookies: Cookie, trainee: Soldier, message: Message) 
     },
   };
 
-  const response = await requestPromise(options, (err, res, body) => {
-    if (err) {
-      throw new Error(err);
+  try {
+    const response = await Axios.post(
+      options.uri,
+      options.form,
+      {
+        headers: options.headers
+      }
+    )
+
+    addLog('sendMessage', `${response.status} ${response.statusText}`);
+
+    if (response.status === 200 && response.data.resultCd !== '0000') {
+      throw new Error(response.data.resultMsg || '알 수 없는 에러.');
     }
 
-    addLog('sendMessage', `${res.statusCode} ${res.statusMessage}`);
-
-    if (res.statusCode === 200 && body.resultCd !== '0000') {
-      throw new Error(body.resultMsg || '알 수 없는 에러.');
+    if (!response) {
+      throw new Error('응답 값이 없습니다.');
     }
-  });
-
-  if (!response) {
-    throw new Error('응답 값이 없습니다.');
+  
+    return true;
+  } catch (e) {
+    throw new Error(e);
   }
-
-  return true;
 }
 
 export { sendMessage };

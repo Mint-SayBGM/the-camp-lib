@@ -1,4 +1,4 @@
-import requestPromise from 'request-promise';
+import axios from 'axios';
 
 import { Cookie, Soldier } from '../models';
 import { addLog, buildRequestUrl } from '../utils';
@@ -28,23 +28,29 @@ async function addSoldier(cookies: Cookie, soldier: Soldier) {
     },
   };
 
-  const response = await requestPromise(options, (err, res, body) => {
-    if (err) {
-      throw new Error(err);
+  try {
+    const response = await axios.post(
+      options.url,
+      options.form,
+      {
+        headers: options.headers
+      },
+    );
+
+    addLog('addSoldier', `${response.status} ${response.statusText}`);
+
+    if (response.status === 200 && response.data.resultCd !== '0000' && response.data.resultCd !== 'E001') {
+      throw new Error(response.data.resultMsg || '알 수 없는 에러.');
     }
 
-    addLog('addSoldier', `${res.statusCode} ${res.statusMessage}`);
-
-    if (res.statusCode === 200 && body.resultCd !== '0000' && body.resultCd !== 'E001') {
-      throw new Error(body.resultMsg || '알 수 없는 에러.');
+    if (!response) {
+      throw new Error('응답 값이 없습니다.');
     }
-  });
-
-  if (!response) {
-    throw new Error('응답 값이 없습니다.');
+  
+    return true;
+  } catch (e) {
+    throw new Error(e);
   }
-
-  return true;
 }
 
 export { addSoldier };

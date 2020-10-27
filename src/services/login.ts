@@ -1,4 +1,4 @@
-import requestPromise from 'request-promise';
+import Axios from 'axios';
 
 import { Cookie } from '../models';
 import { addLog, buildRequestUrl, extractCookies } from '../utils';
@@ -25,29 +25,36 @@ async function login(id: string, password: string) {
   };
   let result: Cookie | null = null;
 
-  const response = await requestPromise(options, (err, res, body) => {
-    if (err) {
-      throw new Error(err);
+  try {
+    const response = await Axios.post(
+      options.url,
+      options.form,
+      {
+        headers: options.headers
+      }
+    );
+
+    addLog('login', `${response.status} ${response.statusText}`);
+
+    if (response.status === 200 && response.data.resultCd !== '0000') {
+      throw new Error(response.data.resultMsg || '알 수 없는 에러.');
     }
 
-    addLog('login', `${res.statusCode} ${res.statusMessage}`);
-
-    if (res.statusCode === 200 && body.resultCd !== '0000') {
-      throw new Error(body.resultMsg || '알 수 없는 에러.');
-    }
-
-    if (!res.headers['set-cookie']) {
+    if (!response.headers['set-cookie']) {
       throw new Error('쿠키를 찾을 수 없습니다.');
     }
 
-    result = extractCookies(res.headers['set-cookie']);
-  });
+    result = extractCookies(response.headers['set-cookie']);
 
-  if (!response || !result) {
-    throw new Error('응답 값이 없습니다.');
+    if (!response || !result) {
+      throw new Error('응답 값이 없습니다.');
+    }
+  
+    return result;
+
+  } catch (e) {
+    throw new Error(e);
   }
-
-  return result;
 }
 
 export { login };

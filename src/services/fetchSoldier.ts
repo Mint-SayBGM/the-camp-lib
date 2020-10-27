@@ -1,4 +1,4 @@
-import requestPromise from 'request-promise';
+import axios from 'axios';
 
 import { Cookie, Soldier } from '../models';
 import { addLog, buildRequestUrl } from '../utils';
@@ -24,34 +24,40 @@ async function fetchSoldiers(cookies: Cookie, soldier: Soldier) {
     },
   };
 
-  const response = await requestPromise(options, (err, res, body) => {
-    if (err) {
-      throw new Error(err);
+  try {
+    const res = await axios.post(
+      options.url,
+      options.form,
+      { 
+        headers: options.headers
+      }
+    )
+
+    addLog('fetchSoldier', `${res.status} ${res.statusText}`);
+
+    if (res.status === 200 && res.data.resultCd !== '9999') {
+      throw new Error(res.data.resultMsg || '알 수 없는 에러.');
     }
 
-    addLog('fetchSoldier', `${res.statusCode} ${res.statusMessage}`);
-
-    if (res.statusCode === 200 && body.resultCd !== '9999') {
-      throw new Error(body.resultMsg || '알 수 없는 에러.');
+    if (!res) {
+      throw new Error('응답 값이 없습니다.');
     }
-  });
 
-  if (!response) {
-    throw new Error('응답 값이 없습니다.');
+    const result: Soldier[] = res.data.listResult.map((fetchedSoldierInfo) => {
+      const { traineeMgrSeq } = fetchedSoldierInfo;
+      const clonedSoldier = soldier.clone();
+      clonedSoldier.setTraineeMgrSeq(traineeMgrSeq);
+      return clonedSoldier;
+    });
+  
+    if (!result || result.length === 0) {
+      throw new Error('해당하는 군인을 찾을 수 없습니다.');
+    }
+  
+    return result;
+  } catch (e) {
+    throw new Error(e);
   }
-
-  const result: Soldier[] = response.listResult.map((fetchedSoldierInfo) => {
-    const { traineeMgrSeq } = fetchedSoldierInfo;
-    const clonedSoldier = soldier.clone();
-    clonedSoldier.setTraineeMgrSeq(traineeMgrSeq);
-    return clonedSoldier;
-  });
-
-  if (!result || result.length === 0) {
-    throw new Error('해당하는 군인을 찾을 수 없습니다.');
-  }
-
-  return result;
 }
 
 export { fetchSoldiers };
